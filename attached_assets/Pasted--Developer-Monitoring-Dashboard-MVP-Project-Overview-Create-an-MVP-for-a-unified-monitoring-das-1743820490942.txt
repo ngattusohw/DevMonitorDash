@@ -1,0 +1,119 @@
+# Developer Monitoring Dashboard MVP
+
+## Project Overview
+Create an MVP for a unified monitoring dashboard that allows solo entrepreneurs and developers to track metrics across multiple projects and services in one place. The tool should primarily focus on historical data analysis rather than real-time monitoring, with a hierarchical approach to visualization.
+
+## Core Architecture
+
+### Dashboard Hierarchy
+1. **Multi-Project Overview** - High-level health indicators across all projects
+2. **Project-Level Dashboard** - Unified view of critical metrics from all services for a specific project
+3. **Service-Specific Views** - Detailed metrics for individual services within a project
+
+### Integration Approach
+- Primarily use API-based integrations with third-party services
+- Support webhook endpoints for services that offer them
+- Start with specific integrations for: Stytch, OneSignal, AWS, Sendbird, Twilio, and Mixpanel
+- Design with a pattern that could be extended to other services in the future
+
+### Data Management
+- Store historical metrics in a time-series database
+- Enable configurable data retention policies
+- Support data export/backup functionality
+
+### User Interface
+- Default organization by projects as the primary navigation layer
+- Allow creation of custom views that combine metrics from different services
+- Provide templates for common monitoring scenarios
+- Include drag-and-drop interface for building custom dashboards
+- Support different visualization types (line charts, bar charts, counters, etc.)
+
+## Security Requirements
+1. **Credential Management**
+   - Encrypted storage for API keys, tokens, and service credentials
+   - No plaintext credentials in logs or databases
+   - Consider integration with secret management services
+
+2. **Access Controls**
+   - Role-based access for team settings
+   - Ability to limit which metrics different users can access
+   - Audit logging for dashboard access and configuration changes
+
+3. **Data Security**
+   - All API calls use HTTPS/TLS
+   - Secure webhook endpoints with signature verification where applicable
+   - Rate limiting to prevent API abuse
+   - Compliance with relevant data regulations
+
+## Service-Specific Metrics
+
+### Stytch (Authentication)
+- Daily/monthly active users
+- New user signups (trend over time)
+- Login success/failure rates
+- Password reset requests
+- MFA usage statistics
+- Session duration averages
+
+### OneSignal (Notifications)
+- Notifications sent (by type/campaign)
+- Delivery rates
+- Open/click-through rates
+- Opt-out/unsubscribe rates
+- Delivery errors by platform (iOS, Android, web)
+
+### AWS (Infrastructure)
+- EC2 instance CPU/memory utilization
+- Lambda invocation counts and errors
+- S3 storage usage and request counts
+- RDS database performance metrics
+- API Gateway request volumes and latencies
+- CloudWatch alarms status
+
+### Sendbird (Messaging)
+- Active channels/conversations
+- Messages sent per day
+- User engagement metrics
+- Media sharing statistics
+- API usage and throttling events
+
+### Twilio (Communications)
+- SMS sent/delivered/failed
+- Voice call minutes and success rates
+- Cost tracking by service
+- Error rates by message type
+- Geographic distribution of communications
+
+### Mixpanel (Analytics)
+- User conversion funnels
+- Feature usage statistics
+- User retention cohorts
+- Event tracking for key user actions
+- Custom event tracking relevant to business KPIs
+
+## Alert System
+- Allow users to configure notification thresholds based on historical patterns
+- Support multiple notification channels (email, Slack, etc.)
+- Provide smart alerting to reduce alert fatigue
+- Enable alert grouping and summarization
+
+## Technical Stack Preferences
+- Backend: Node.js or Python
+- Frontend: React
+- Database: Time-series DB (InfluxDB, TimescaleDB) for metrics, PostgreSQL for configuration
+- Deployment: Docker containers for easy self-hosting
+
+## MVP Success Criteria
+1. Successfully connect to and pull data from at least 3 of the specified services
+2. Display hierarchical dashboards (multi-project, project, service-specific)
+3. Allow creation of at least one custom view with metrics from different services
+4. Implement basic threshold-based alerting
+5. Secure storage of API credentials
+6. Support for at least daily data refresh
+
+## Nice-to-Have Features (Beyond MVP)
+- Data retention policies and historical data management
+- Public dashboard sharing with limited access
+- Advanced anomaly detection
+- Mobile companion app
+- Integration with additional services beyond the initial six
