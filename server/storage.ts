@@ -1,0 +1,550 @@
+import {
+  users,
+  type User,
+  type InsertUser,
+  projects,
+  type Project,
+  type InsertProject,
+  services,
+  type Service,
+  type InsertService,
+  projectServices,
+  type ProjectService,
+  type InsertProjectService,
+  alerts,
+  type Alert,
+  type InsertAlert,
+  customViews,
+  type CustomView,
+  type InsertCustomView,
+  thresholdAlerts,
+  type ThresholdAlert,
+  type InsertThresholdAlert,
+  ServiceType
+} from '@shared/schema';
+
+export interface IStorage {
+  // User methods
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+
+  // Project methods
+  getProject(id: number): Promise<Project | undefined>;
+  getAllProjects(): Promise<Project[]>;
+  createProject(project: InsertProject): Promise<Project>;
+  updateProject(id: number, project: Partial<Project>): Promise<Project | undefined>;
+  deleteProject(id: number): Promise<boolean>;
+
+  // Service methods
+  getService(id: number): Promise<Service | undefined>;
+  getAllServices(): Promise<Service[]>;
+  getServicesByType(type: ServiceType): Promise<Service[]>;
+  getServicesByProjectId(projectId: number): Promise<Service[]>;
+  createService(service: InsertService): Promise<Service>;
+  updateService(id: number, service: Partial<Service>): Promise<Service | undefined>;
+  deleteService(id: number): Promise<boolean>;
+
+  // Project-Service relationship methods
+  assignServiceToProject(projectId: number, serviceId: number): Promise<ProjectService>;
+  removeServiceFromProject(projectId: number, serviceId: number): Promise<boolean>;
+
+  // Alert methods
+  getAlert(id: number): Promise<Alert | undefined>;
+  getAllAlerts(): Promise<Alert[]>;
+  getAlertsByProjectId(projectId: number): Promise<Alert[]>;
+  getAlertsByServiceId(serviceId: number): Promise<Alert[]>;
+  createAlert(alert: InsertAlert): Promise<Alert>;
+  updateAlert(id: number, alert: Partial<Alert>): Promise<Alert | undefined>;
+  deleteAlert(id: number): Promise<boolean>;
+
+  // CustomView methods
+  getCustomViewById(id: number): Promise<CustomView | undefined>;
+  getCustomViewsByUserId(userId: number): Promise<CustomView[]>;
+  createCustomView(view: InsertCustomView): Promise<CustomView>;
+  updateCustomView(id: number, view: Partial<CustomView>): Promise<CustomView | undefined>;
+  deleteCustomView(id: number): Promise<boolean>;
+
+  // ThresholdAlert methods
+  getThresholdAlert(id: number): Promise<ThresholdAlert | undefined>;
+  getAllThresholdAlerts(): Promise<ThresholdAlert[]>;
+  getThresholdAlertsByServiceId(serviceId: number): Promise<ThresholdAlert[]>;
+  createThresholdAlert(alert: InsertThresholdAlert): Promise<ThresholdAlert>;
+  updateThresholdAlert(id: number, alert: Partial<ThresholdAlert>): Promise<ThresholdAlert | undefined>;
+  deleteThresholdAlert(id: number): Promise<boolean>;
+}
+
+export class MemStorage implements IStorage {
+  private users: Map<number, User>;
+  private projects: Map<number, Project>;
+  private services: Map<number, Service>;
+  private projectServices: Map<number, ProjectService>;
+  private alerts: Map<number, Alert>;
+  private customViews: Map<number, CustomView>;
+  private thresholdAlerts: Map<number, ThresholdAlert>;
+
+  currentUserId: number;
+  currentProjectId: number;
+  currentServiceId: number;
+  currentProjectServiceId: number;
+  currentAlertId: number;
+  currentCustomViewId: number;
+  currentThresholdAlertId: number;
+
+  constructor() {
+    this.users = new Map();
+    this.projects = new Map();
+    this.services = new Map();
+    this.projectServices = new Map();
+    this.alerts = new Map();
+    this.customViews = new Map();
+    this.thresholdAlerts = new Map();
+
+    this.currentUserId = 1;
+    this.currentProjectId = 1;
+    this.currentServiceId = 1;
+    this.currentProjectServiceId = 1;
+    this.currentAlertId = 1;
+    this.currentCustomViewId = 1;
+    this.currentThresholdAlertId = 1;
+
+    // Initialize with some sample data
+    this.initializeSampleData();
+  }
+
+  // Initialize with some sample data for development purposes
+  private initializeSampleData() {
+    // Create a default user first
+    const defaultUser = this.createUser({
+      username: "admin",
+      password: "password123",
+      email: "admin@example.com",
+      fullName: "Admin User"
+    });
+
+    // Create sample projects
+    const project1 = this.createProject({
+      name: "E-commerce Platform",
+      description: "Online shopping platform with user accounts and payment processing",
+      userId: defaultUser.id
+    });
+
+    const project2 = this.createProject({
+      name: "Messaging App",
+      description: "Real-time messaging application with push notifications",
+      userId: defaultUser.id
+    });
+
+    const project3 = this.createProject({
+      name: "Mobile API",
+      description: "Backend API services for mobile applications",
+      userId: defaultUser.id
+    });
+
+    // Create sample services
+    const stytchService = this.createService({
+      name: "User Authentication",
+      type: "stytch",
+      apiKey: "stytch_test_key",
+      apiSecret: "stytch_test_secret",
+      active: true
+    });
+
+    const onesignalService = this.createService({
+      name: "Push Notifications",
+      type: "onesignal",
+      apiKey: "onesignal_test_key",
+      active: true
+    });
+
+    const awsService = this.createService({
+      name: "AWS Infrastructure",
+      type: "aws",
+      apiKey: "aws_test_key",
+      apiSecret: "aws_test_secret",
+      active: true
+    });
+
+    const sendbirdService = this.createService({
+      name: "Chat Service",
+      type: "sendbird",
+      apiKey: "sendbird_test_key",
+      active: true
+    });
+
+    const twilioService = this.createService({
+      name: "SMS Communications",
+      type: "twilio",
+      apiKey: "twilio_test_key",
+      apiSecret: "twilio_test_secret",
+      active: true
+    });
+
+    const mixpanelService = this.createService({
+      name: "User Analytics",
+      type: "mixpanel",
+      apiKey: "mixpanel_test_key",
+      active: true
+    });
+    // Create sample alerts
+    this.createAlert({
+      projectId: project1.id,
+      serviceId: awsService.id,
+      severity: 'critical',
+      message: 'Elevated error rates in payment processing Lambda function',
+      status: 'active'
+    });
+
+    this.createAlert({
+      projectId: project1.id,
+      serviceId: awsService.id,
+      severity: 'warning',
+      message: 'Database CPU utilization above 80% for last 15 minutes',
+      status: 'active'
+    });
+
+    this.createAlert({
+      projectId: project3.id,
+      serviceId: awsService.id,
+      severity: 'warning',
+      message: 'Increased latency on user profile endpoint',
+      status: 'active'
+    });
+
+    // Create sample threshold alerts
+    this.createThresholdAlert({
+      serviceId: awsService.id,
+      metricName: 'cpu_utilization',
+      condition: 'gt',
+      threshold: 80,
+      severity: 'warning',
+      message: 'CPU utilization exceeds 80%',
+      active: true
+    });
+
+    this.createThresholdAlert({
+      serviceId: stytchService.id,
+      metricName: 'login_failure_rate',
+      condition: 'gt',
+      threshold: 10,
+      severity: 'critical',
+      message: 'Login failure rate exceeds 10%',
+      active: true
+    });
+
+    this.createThresholdAlert({
+      serviceId: onesignalService.id,
+      metricName: 'delivery_failure_rate',
+      condition: 'gt',
+      threshold: 5,
+      severity: 'warning',
+      message: 'Notification delivery failure rate exceeds 5%',
+      active: true
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username,
+    );
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = this.currentUserId++;
+    const user: User = { ...insertUser, id };
+    this.users.set(id, user);
+    return user;
+  }
+
+  // Project methods
+  async getProject(id: number): Promise<Project | undefined> {
+    return this.projects.get(id);
+  }
+
+  async getAllProjects(): Promise<Project[]> {
+    return Array.from(this.projects.values());
+  }
+
+  async createProject(insertProject: InsertProject): Promise<Project> {
+    const id = this.currentProjectId++;
+    const project: Project = { 
+      ...insertProject, 
+      id, 
+      status: insertProject.status || 'active',
+      healthScore: insertProject.healthScore || 100
+    };
+    this.projects.set(id, project);
+    return project;
+  }
+
+  async updateProject(id: number, projectUpdate: Partial<Project>): Promise<Project | undefined> {
+    const project = this.projects.get(id);
+    if (!project) return undefined;
+
+    const updatedProject = { ...project, ...projectUpdate };
+    this.projects.set(id, updatedProject);
+    return updatedProject;
+  }
+
+  async deleteProject(id: number): Promise<boolean> {
+    if (!this.projects.has(id)) return false;
+
+    // Delete all project-service associations for this project
+    const projectServiceEntries = Array.from(this.projectServices.values()).filter(
+      ps => ps.projectId === id
+    );
+    
+    for (const ps of projectServiceEntries) {
+      this.projectServices.delete(ps.id);
+    }
+
+    // Delete all alerts for this project
+    const alertEntries = Array.from(this.alerts.values()).filter(
+      a => a.projectId === id
+    );
+    
+    for (const alert of alertEntries) {
+      this.alerts.delete(alert.id);
+    }
+
+    return this.projects.delete(id);
+  }
+
+  // Service methods
+  async getService(id: number): Promise<Service | undefined> {
+    return this.services.get(id);
+  }
+
+  async getAllServices(): Promise<Service[]> {
+    return Array.from(this.services.values());
+  }
+
+  async getServicesByType(type: ServiceType): Promise<Service[]> {
+    return Array.from(this.services.values()).filter(
+      service => service.type === type
+    );
+  }
+
+  async getServicesByProjectId(projectId: number): Promise<Service[]> {
+    const projectServiceEntries = Array.from(this.projectServices.values()).filter(
+      ps => ps.projectId === projectId
+    );
+    
+    const serviceIds = projectServiceEntries.map(ps => ps.serviceId);
+    
+    return Array.from(this.services.values()).filter(
+      service => serviceIds.includes(service.id)
+    );
+  }
+
+  async createService(insertService: InsertService): Promise<Service> {
+    const id = this.currentServiceId++;
+    const service: Service = { 
+      ...insertService, 
+      id,
+      active: insertService.active !== undefined ? insertService.active : true
+    };
+    this.services.set(id, service);
+    return service;
+  }
+
+  async updateService(id: number, serviceUpdate: Partial<Service>): Promise<Service | undefined> {
+    const service = this.services.get(id);
+    if (!service) return undefined;
+
+    const updatedService = { ...service, ...serviceUpdate };
+    this.services.set(id, updatedService);
+    return updatedService;
+  }
+
+  async deleteService(id: number): Promise<boolean> {
+    if (!this.services.has(id)) return false;
+
+    // Delete all project-service associations for this service
+    const projectServiceEntries = Array.from(this.projectServices.values()).filter(
+      ps => ps.serviceId === id
+    );
+    
+    for (const ps of projectServiceEntries) {
+      this.projectServices.delete(ps.id);
+    }
+
+    // Delete all alerts for this service
+    const alertEntries = Array.from(this.alerts.values()).filter(
+      a => a.serviceId === id
+    );
+    
+    for (const alert of alertEntries) {
+      this.alerts.delete(alert.id);
+    }
+
+    // Delete all threshold alerts for this service
+    const thresholdAlertEntries = Array.from(this.thresholdAlerts.values()).filter(
+      ta => ta.serviceId === id
+    );
+    
+    for (const ta of thresholdAlertEntries) {
+      this.thresholdAlerts.delete(ta.id);
+    }
+
+    return this.services.delete(id);
+  }
+
+  // Project-Service relationship methods
+  async assignServiceToProject(projectId: number, serviceId: number): Promise<ProjectService> {
+    // Check if project and service exist
+    const project = this.projects.get(projectId);
+    const service = this.services.get(serviceId);
+    
+    if (!project || !service) {
+      throw new Error('Project or service not found');
+    }
+    
+    // Check if relationship already exists
+    const existing = Array.from(this.projectServices.values()).find(
+      ps => ps.projectId === projectId && ps.serviceId === serviceId
+    );
+    
+    if (existing) {
+      return existing;
+    }
+    
+    const id = this.currentProjectServiceId++;
+    const projectService: ProjectService = { id, projectId, serviceId };
+    this.projectServices.set(id, projectService);
+    return projectService;
+  }
+
+  async removeServiceFromProject(projectId: number, serviceId: number): Promise<boolean> {
+    const projectService = Array.from(this.projectServices.values()).find(
+      ps => ps.projectId === projectId && ps.serviceId === serviceId
+    );
+    
+    if (!projectService) return false;
+    
+    return this.projectServices.delete(projectService.id);
+  }
+
+  // Alert methods
+  async getAlert(id: number): Promise<Alert | undefined> {
+    return this.alerts.get(id);
+  }
+
+  async getAllAlerts(): Promise<Alert[]> {
+    return Array.from(this.alerts.values());
+  }
+
+  async getAlertsByProjectId(projectId: number): Promise<Alert[]> {
+    return Array.from(this.alerts.values()).filter(
+      alert => alert.projectId === projectId
+    );
+  }
+
+  async getAlertsByServiceId(serviceId: number): Promise<Alert[]> {
+    return Array.from(this.alerts.values()).filter(
+      alert => alert.serviceId === serviceId
+    );
+  }
+
+  async createAlert(insertAlert: InsertAlert): Promise<Alert> {
+    const id = this.currentAlertId++;
+    const alert: Alert = { 
+      ...insertAlert, 
+      id,
+      timestamp: insertAlert.timestamp || new Date(),
+      status: insertAlert.status || 'active'
+    };
+    this.alerts.set(id, alert);
+    return alert;
+  }
+
+  async updateAlert(id: number, alertUpdate: Partial<Alert>): Promise<Alert | undefined> {
+    const alert = this.alerts.get(id);
+    if (!alert) return undefined;
+
+    const updatedAlert = { ...alert, ...alertUpdate };
+    this.alerts.set(id, updatedAlert);
+    return updatedAlert;
+  }
+
+  async deleteAlert(id: number): Promise<boolean> {
+    return this.alerts.delete(id);
+  }
+
+  // CustomView methods
+  async getCustomViewById(id: number): Promise<CustomView | undefined> {
+    return this.customViews.get(id);
+  }
+
+  async getCustomViewsByUserId(userId: number): Promise<CustomView[]> {
+    return Array.from(this.customViews.values()).filter(
+      view => view.userId === userId
+    );
+  }
+
+  async createCustomView(insertView: InsertCustomView): Promise<CustomView> {
+    const id = this.currentCustomViewId++;
+    const customView: CustomView = { ...insertView, id };
+    this.customViews.set(id, customView);
+    return customView;
+  }
+
+  async updateCustomView(id: number, viewUpdate: Partial<CustomView>): Promise<CustomView | undefined> {
+    const view = this.customViews.get(id);
+    if (!view) return undefined;
+
+    const updatedView = { ...view, ...viewUpdate };
+    this.customViews.set(id, updatedView);
+    return updatedView;
+  }
+
+  async deleteCustomView(id: number): Promise<boolean> {
+    return this.customViews.delete(id);
+  }
+
+  // ThresholdAlert methods
+  async getThresholdAlert(id: number): Promise<ThresholdAlert | undefined> {
+    return this.thresholdAlerts.get(id);
+  }
+
+  async getAllThresholdAlerts(): Promise<ThresholdAlert[]> {
+    return Array.from(this.thresholdAlerts.values());
+  }
+
+  async getThresholdAlertsByServiceId(serviceId: number): Promise<ThresholdAlert[]> {
+    return Array.from(this.thresholdAlerts.values()).filter(
+      alert => alert.serviceId === serviceId
+    );
+  }
+
+  async createThresholdAlert(insertAlert: InsertThresholdAlert): Promise<ThresholdAlert> {
+    const id = this.currentThresholdAlertId++;
+    const thresholdAlert: ThresholdAlert = { 
+      ...insertAlert, 
+      id,
+      active: insertAlert.active !== undefined ? insertAlert.active : true
+    };
+    this.thresholdAlerts.set(id, thresholdAlert);
+    return thresholdAlert;
+  }
+
+  async updateThresholdAlert(id: number, alertUpdate: Partial<ThresholdAlert>): Promise<ThresholdAlert | undefined> {
+    const alert = this.thresholdAlerts.get(id);
+    if (!alert) return undefined;
+
+    const updatedAlert = { ...alert, ...alertUpdate };
+    this.thresholdAlerts.set(id, updatedAlert);
+    return updatedAlert;
+  }
+
+  async deleteThresholdAlert(id: number): Promise<boolean> {
+    return this.thresholdAlerts.delete(id);
+  }
+}
+
+export const storage = new MemStorage();
