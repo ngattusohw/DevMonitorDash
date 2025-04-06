@@ -463,6 +463,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get service metrics for project dashboard
+  app.get('/api/projects/:projectId/metrics/:serviceType', async (req: Request, res: Response) => {
+    try {
+      const { projectId, serviceType } = req.params;
+      const { range = '7d' } = req.query;
+      
+      // Validate parameters
+      if (!projectId || isNaN(parseInt(projectId))) {
+        return res.status(400).json({ message: "Valid project ID is required" });
+      }
+      if (!serviceType) {
+        return res.status(400).json({ message: "Service type is required" });
+      }
+      
+      // Generate mock metrics data for the requested service
+      const generateDataPoints = (min: number, max: number, days: number, variance = 0.1) => {
+        const dataPoints = [];
+        let baseValue = Math.floor(Math.random() * (max - min)) + min;
+        const now = new Date();
+        
+        for (let i = days; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(now.getDate() - i);
+          
+          // Add some randomness but maintain a trend
+          const randomFactor = 1 + (Math.random() * variance * 2 - variance);
+          baseValue = Math.max(min, Math.min(max, baseValue * randomFactor));
+          
+          dataPoints.push({
+            timestamp: date.toISOString(),
+            value: Math.round(baseValue)
+          });
+        }
+        
+        return dataPoints;
+      };
+      
+      // Define metrics based on service type
+      const metrics: Record<string, any> = {};
+      
+      switch (serviceType) {
+        case 'stytch':
+          metrics.users = {
+            dataPoints: generateDataPoints(500, 3000, 30)
+          };
+          metrics.auth_success = {
+            dataPoints: generateDataPoints(75, 98, 30, 0.05)
+          };
+          break;
+        case 'onesignal':
+          metrics.notifications = {
+            dataPoints: generateDataPoints(5000, 25000, 30)
+          };
+          metrics.delivery_rate = {
+            dataPoints: generateDataPoints(85, 99, 30, 0.02)
+          };
+          break;
+        case 'aws':
+          metrics.api_requests = {
+            dataPoints: generateDataPoints(50000, 500000, 30)
+          };
+          metrics.response_time = {
+            dataPoints: generateDataPoints(50, 250, 30)
+          };
+          metrics.error_rate = {
+            dataPoints: generateDataPoints(1, 10, 30, 0.2)
+          };
+          break;
+        case 'mixpanel':
+          metrics.daily_active = {
+            dataPoints: generateDataPoints(3000, 20000, 30)
+          };
+          metrics.revenue = {
+            dataPoints: generateDataPoints(500, 5000, 30)
+          };
+          break;
+        default:
+          metrics.sample_metric = {
+            dataPoints: generateDataPoints(100, 1000, 30)
+          };
+      }
+      
+      return res.json({ 
+        projectId: Number(projectId),
+        serviceType,
+        timeRange: range,
+        metrics
+      });
+    } catch (error: any) {
+      console.error(`Error fetching ${req.params.serviceType} metrics:`, error);
+      return res.status(500).json({ message: error.message || 'Failed to fetch metrics' });
+    }
+  });
+
   // Set up data refresh job (daily)
   setupDataRefreshJob();
 
