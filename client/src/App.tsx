@@ -13,16 +13,14 @@ import { DashboardProvider } from "./contexts/dashboard-context";
 
 function Router() {
   return (
-    <DashboardLayout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/project/:id" component={ProjectDashboard} />
-        <Route path="/project/:projectId/service/:serviceType" component={ServiceDashboard} />
-        <Route path="/settings" component={Settings} />
-        <Route path="/alerts" component={Alerts} />
-        <Route component={NotFound} />
-      </Switch>
-    </DashboardLayout>
+    <Switch>
+      <Route path="/" component={Dashboard} />
+      <Route path="/project/:id" component={ProjectDashboard} />
+      <Route path="/project/:projectId/service/:serviceType" component={ServiceDashboard} />
+      <Route path="/settings" component={Settings} />
+      <Route path="/alerts" component={Alerts} />
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
@@ -30,7 +28,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <DashboardProvider>
-        <Router />
+        <DashboardLayout>
+          <Router />
+        </DashboardLayout>
         <Toaster />
       </DashboardProvider>
     </QueryClientProvider>

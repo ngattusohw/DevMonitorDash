@@ -1,25 +1,26 @@
-import React, { useState } from "react";
+import React from "react";
 import Sidebar from "@/components/dashboard/sidebar";
-import { Menu, X, User } from "lucide-react";
+import { Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useDashboard } from "@/contexts/dashboard-context";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { sidebarOpen, setSidebarOpen } = useDashboard();
   
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Desktop Sidebar */}
-      <Sidebar />
+      <Sidebar open={sidebarOpen} />
       
       {/* Mobile Sidebar (Sheet) */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
-          <Sidebar />
+          <Sidebar open={sidebarOpen} />
         </SheetContent>
       </Sheet>
       

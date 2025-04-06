@@ -3,7 +3,7 @@ import { useProjects } from "@/hooks/use-projects";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Plus } from "lucide-react";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,20 +24,50 @@ export function Dashboard() {
   const [timeRange, setTimeRange] = useState("7d");
   const [refreshing, setRefreshing] = useState(false);
   const [addWidgetOpen, setAddWidgetOpen] = useState(false);
-  
+
   // Mock service health data
   const serviceHealth: ServiceHealth[] = [
-    { serviceType: "stytch", status: "operational", statusText: "Operational", icon: "lock" },
-    { serviceType: "onesignal", status: "operational", statusText: "Operational", icon: "bell" },
-    { serviceType: "aws", status: "degraded", statusText: "Degraded", icon: "cloud" },
-    { serviceType: "sendbird", status: "operational", statusText: "Operational", icon: "message-square" },
-    { serviceType: "twilio", status: "incident", statusText: "Incident", icon: "phone" },
-    { serviceType: "mixpanel", status: "operational", statusText: "Operational", icon: "bar-chart" },
+    {
+      serviceType: "stytch",
+      status: "operational",
+      statusText: "Operational",
+      icon: "lock",
+    },
+    {
+      serviceType: "onesignal",
+      status: "operational",
+      statusText: "Operational",
+      icon: "bell",
+    },
+    {
+      serviceType: "aws",
+      status: "degraded",
+      statusText: "Degraded",
+      icon: "cloud",
+    },
+    {
+      serviceType: "sendbird",
+      status: "operational",
+      statusText: "Operational",
+      icon: "message-square",
+    },
+    {
+      serviceType: "twilio",
+      status: "incident",
+      statusText: "Incident",
+      icon: "phone",
+    },
+    {
+      serviceType: "mixpanel",
+      status: "operational",
+      statusText: "Operational",
+      icon: "bar-chart",
+    },
   ];
-  
+
   // Get the most recent alerts
   const recentAlerts = alerts.slice(0, 3);
-  
+
   const handleRefreshData = () => {
     setRefreshing(true);
     // Simulate refresh delay
@@ -49,39 +79,43 @@ export function Dashboard() {
       });
     }, 1000);
   };
-  
+
   const handleViewAlertDetails = (alert: Alert) => {
     toast({
       title: "View Alert Details",
       description: `Viewing details for ${alert.title}`,
     });
   };
-  
+
   const handleAcknowledgeAlert = (alert: Alert) => {
     updateAlert({
       ...alert,
-      status: "acknowledged"
+      status: "acknowledged",
     });
     toast({
       title: "Alert Acknowledged",
       description: `${alert.title} has been acknowledged.`,
     });
   };
-  
+
   const handleAddWidget = (data: any) => {
     toast({
       title: "Widget Added",
       description: `Added a new ${data.widgetType} widget for ${data.serviceType}.`,
     });
   };
-  
+
   return (
     <div className="p-6">
       {/* Breadcrumb and Actions */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-          <div className="text-sm text-gray-500 mt-1">Monitor all your services in one place</div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Dashboard Overview
+          </h1>
+          <div className="text-sm text-gray-500 mt-1">
+            Monitor all your services in one place
+          </div>
         </div>
         <div className="flex mt-4 md:mt-0 space-x-3">
           <Select value={timeRange} onValueChange={setTimeRange}>
@@ -95,16 +129,18 @@ export function Dashboard() {
               <SelectItem value="custom">Custom range</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Button
             variant="outline"
             onClick={handleRefreshData}
             disabled={refreshing}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             Refresh Data
           </Button>
-          
+
           <Button onClick={() => setAddWidgetOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Widget
@@ -116,12 +152,12 @@ export function Dashboard() {
       <ServiceHealthOverview services={serviceHealth} />
 
       {/* Recent Alerts */}
-      <RecentAlerts 
-        alerts={recentAlerts} 
+      <RecentAlerts
+        alerts={recentAlerts}
         onViewDetails={handleViewAlertDetails}
         onAcknowledge={handleAcknowledgeAlert}
       />
-      
+
       {/* Add Widget Modal */}
       <AddWidgetModal
         open={addWidgetOpen}

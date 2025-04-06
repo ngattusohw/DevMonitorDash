@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
 
 // Define DateRangeType within the file since we can't import from server
 type DateRangeType = "24h" | "7d" | "30d" | "90d" | "custom";
@@ -19,7 +25,9 @@ interface DashboardContextType {
   triggerRefresh: () => void;
 }
 
-const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
+const DashboardContext = createContext<DashboardContextType | undefined>(
+  undefined,
+);
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const [dateRange, setDateRange] = useState<DateRangeType>("7d");
@@ -27,8 +35,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     start: Date | null;
     end: Date | null;
   }>({ start: null, end: null });
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
+    null,
+  );
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(
+    null,
+  );
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -37,11 +49,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleSidebar = () => {
-    setSidebarOpen(prev => !prev);
+    setSidebarOpen((prev) => !prev);
   };
 
   const triggerRefresh = useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   }, []);
 
   return (
@@ -59,7 +71,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         setSidebarOpen,
         toggleSidebar,
         refreshTrigger,
-        triggerRefresh
+        triggerRefresh,
       }}
     >
       {children}

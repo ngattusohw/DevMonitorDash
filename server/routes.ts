@@ -63,12 +63,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log(`Getting projects for userId: ${userId}`);
-      const projects = await storage.getProjectsByUserId(userId);
-      console.log(`Found ${projects.length} projects`);
-      res.json(projects);
+      try {
+        const projects = await storage.getProjectsByUserId(userId);
+        console.log(`Found ${projects.length} projects`);
+        return res.json(projects);
+      } catch (storageError) {
+        console.error("Storage error getting projects:", storageError);
+        // At this point, our storage.getProjectsByUserId method will have already
+        // attempted to provide fallback data if the DB query failed
+        return res.status(500).json({ 
+          message: "Failed to get projects from storage", 
+          error: storageError instanceof Error ? storageError.message : String(storageError) 
+        });
+      }
     } catch (error) {
-      console.error("Error getting projects:", error);
-      res.status(500).json({ message: "Failed to get projects", error: error instanceof Error ? error.message : String(error) });
+      console.error("Unexpected error getting projects:", error);
+      return res.status(500).json({ 
+        message: "Failed to process projects request", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 

@@ -49,7 +49,11 @@ const SidebarItem = ({ href, icon: Icon, children, badge, active }: SidebarItemP
   );
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  open?: boolean;
+}
+
+export function Sidebar({ open = true }: SidebarProps) {
   const [location] = useLocation();
   const { projects } = useProjects();
   const { alerts } = useAlerts();
@@ -58,7 +62,10 @@ export function Sidebar() {
   const activeAlerts = alerts.filter(alert => alert.status === "active");
   
   return (
-    <aside className="w-64 bg-white shadow-md z-10 flex-shrink-0 hidden md:block">
+    <aside className={cn(
+      "w-64 bg-white shadow-md z-10 flex-shrink-0",
+      open ? "hidden md:block" : "hidden"
+    )}>
       <div className="h-full flex flex-col">
         {/* Logo and App Title */}
         <div className="px-4 py-5 flex items-center border-b border-gray-200">
