@@ -109,7 +109,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjectsByUserId(userId: number): Promise<Project[]> {
-    return await db.select().from(projects).where(eq(projects.userId, userId)).orderBy(asc(projects.name));
+    // Using sql for direct column access
+    return await db.select().from(projects).where(sql`user_id = ${userId}`).orderBy(asc(projects.name));
   }
 
   async createProject(project: InsertProject): Promise<Project> {
