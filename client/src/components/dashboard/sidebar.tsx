@@ -63,8 +63,8 @@ export function Sidebar({ open = true }: SidebarProps) {
   
   return (
     <aside className={cn(
-      "w-64 bg-white shadow-md z-10 flex-shrink-0",
-      open ? "hidden md:block" : "hidden"
+      "w-64 bg-white shadow-md z-10 flex-shrink-0 transition-all duration-300",
+      open ? "block" : "hidden md:hidden"
     )}>
       <div className="h-full flex flex-col">
         {/* Logo and App Title */}
