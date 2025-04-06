@@ -5,23 +5,23 @@ import {
   projects,
   type Project,
   type InsertProject,
-  services,
-  type Service,
-  type InsertService,
-  projectServices,
-  type ProjectService,
-  type InsertProjectService,
+  serviceIntegrations,
+  type ServiceIntegration,
+  type InsertServiceIntegration,
   alerts,
   type Alert,
   type InsertAlert,
-  customViews,
-  type CustomView,
-  type InsertCustomView,
-  thresholdAlerts,
-  type ThresholdAlert,
-  type InsertThresholdAlert,
-  ServiceType
+  dashboardWidgets,
+  type DashboardWidget,
+  type InsertDashboardWidget,
+  metrics,
+  type Metric,
+  type InsertMetric
 } from '@shared/schema';
+
+// Define ServiceType
+export type ServiceType = 'stytch' | 'onesignal' | 'aws' | 'sendbird' | 'twilio' | 'mixpanel';
+export type DateRangeType = "24h" | "7d" | "30d" | "90d" | "custom";
 
 export interface IStorage {
   // User methods
@@ -32,519 +32,289 @@ export interface IStorage {
   // Project methods
   getProject(id: number): Promise<Project | undefined>;
   getAllProjects(): Promise<Project[]>;
+  getProjectsByUserId(userId: number): Promise<Project[]>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: number, project: Partial<Project>): Promise<Project | undefined>;
   deleteProject(id: number): Promise<boolean>;
 
-  // Service methods
-  getService(id: number): Promise<Service | undefined>;
-  getAllServices(): Promise<Service[]>;
-  getServicesByType(type: ServiceType): Promise<Service[]>;
-  getServicesByProjectId(projectId: number): Promise<Service[]>;
-  createService(service: InsertService): Promise<Service>;
-  updateService(id: number, service: Partial<Service>): Promise<Service | undefined>;
-  deleteService(id: number): Promise<boolean>;
-
-  // Project-Service relationship methods
-  assignServiceToProject(projectId: number, serviceId: number): Promise<ProjectService>;
-  removeServiceFromProject(projectId: number, serviceId: number): Promise<boolean>;
+  // Service Integration methods
+  getServiceIntegration(id: number): Promise<ServiceIntegration | undefined>;
+  getAllServiceIntegrations(): Promise<ServiceIntegration[]>;
+  getServiceIntegrationsByType(type: ServiceType): Promise<ServiceIntegration[]>;
+  getServiceIntegrationsByProjectId(projectId: number): Promise<ServiceIntegration[]>;
+  createServiceIntegration(service: InsertServiceIntegration): Promise<ServiceIntegration>;
+  updateServiceIntegration(id: number, service: Partial<ServiceIntegration>): Promise<ServiceIntegration | undefined>;
+  deleteServiceIntegration(id: number): Promise<boolean>;
 
   // Alert methods
   getAlert(id: number): Promise<Alert | undefined>;
   getAllAlerts(): Promise<Alert[]>;
   getAlertsByProjectId(projectId: number): Promise<Alert[]>;
-  getAlertsByServiceId(serviceId: number): Promise<Alert[]>;
+  getAlertsByServiceType(serviceType: ServiceType): Promise<Alert[]>;
   createAlert(alert: InsertAlert): Promise<Alert>;
   updateAlert(id: number, alert: Partial<Alert>): Promise<Alert | undefined>;
   deleteAlert(id: number): Promise<boolean>;
 
-  // CustomView methods
-  getCustomViewById(id: number): Promise<CustomView | undefined>;
-  getCustomViewsByUserId(userId: number): Promise<CustomView[]>;
-  createCustomView(view: InsertCustomView): Promise<CustomView>;
-  updateCustomView(id: number, view: Partial<CustomView>): Promise<CustomView | undefined>;
-  deleteCustomView(id: number): Promise<boolean>;
+  // Dashboard Widget methods
+  getDashboardWidget(id: number): Promise<DashboardWidget | undefined>;
+  getAllDashboardWidgets(): Promise<DashboardWidget[]>;
+  getDashboardWidgetsByProjectId(projectId: number): Promise<DashboardWidget[]>;
+  createDashboardWidget(widget: InsertDashboardWidget): Promise<DashboardWidget>;
+  updateDashboardWidget(id: number, widget: Partial<DashboardWidget>): Promise<DashboardWidget | undefined>;
+  deleteDashboardWidget(id: number): Promise<boolean>;
 
-  // ThresholdAlert methods
-  getThresholdAlert(id: number): Promise<ThresholdAlert | undefined>;
-  getAllThresholdAlerts(): Promise<ThresholdAlert[]>;
-  getThresholdAlertsByServiceId(serviceId: number): Promise<ThresholdAlert[]>;
-  createThresholdAlert(alert: InsertThresholdAlert): Promise<ThresholdAlert>;
-  updateThresholdAlert(id: number, alert: Partial<ThresholdAlert>): Promise<ThresholdAlert | undefined>;
-  deleteThresholdAlert(id: number): Promise<boolean>;
+  // Metrics methods
+  getMetric(id: number): Promise<Metric | undefined>;
+  getAllMetrics(): Promise<Metric[]>;
+  getMetricsByProjectId(
+    projectId: number,
+    serviceType?: string,
+    metricType?: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<Metric[]>;
+  getMetricsByServiceType(serviceType: ServiceType): Promise<Metric[]>;
+  createMetric(metric: InsertMetric): Promise<Metric>;
+  deleteMetric(id: number): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private projects: Map<number, Project>;
-  private services: Map<number, Service>;
-  private projectServices: Map<number, ProjectService>;
-  private alerts: Map<number, Alert>;
-  private customViews: Map<number, CustomView>;
-  private thresholdAlerts: Map<number, ThresholdAlert>;
+import { db } from './db';
+import { eq, and, asc, sql } from 'drizzle-orm';
 
-  currentUserId: number;
-  currentProjectId: number;
-  currentServiceId: number;
-  currentProjectServiceId: number;
-  currentAlertId: number;
-  currentCustomViewId: number;
-  currentThresholdAlertId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.projects = new Map();
-    this.services = new Map();
-    this.projectServices = new Map();
-    this.alerts = new Map();
-    this.customViews = new Map();
-    this.thresholdAlerts = new Map();
-
-    this.currentUserId = 1;
-    this.currentProjectId = 1;
-    this.currentServiceId = 1;
-    this.currentProjectServiceId = 1;
-    this.currentAlertId = 1;
-    this.currentCustomViewId = 1;
-    this.currentThresholdAlertId = 1;
-
-    // Initialize with some sample data
-    this.initializeSampleData();
-  }
-
-  // Initialize with some sample data for development purposes
-  private initializeSampleData() {
-    // Create a default user first
-    const defaultUser = this.createUser({
-      username: "admin",
-      password: "password123",
-      email: "admin@example.com",
-      fullName: "Admin User"
-    });
-
-    // Create sample projects
-    const project1 = this.createProject({
-      name: "E-commerce Platform",
-      description: "Online shopping platform with user accounts and payment processing",
-      userId: defaultUser.id
-    });
-
-    const project2 = this.createProject({
-      name: "Messaging App",
-      description: "Real-time messaging application with push notifications",
-      userId: defaultUser.id
-    });
-
-    const project3 = this.createProject({
-      name: "Mobile API",
-      description: "Backend API services for mobile applications",
-      userId: defaultUser.id
-    });
-
-    // Create sample services
-    const stytchService = this.createService({
-      name: "User Authentication",
-      type: "stytch",
-      apiKey: "stytch_test_key",
-      apiSecret: "stytch_test_secret",
-      active: true
-    });
-
-    const onesignalService = this.createService({
-      name: "Push Notifications",
-      type: "onesignal",
-      apiKey: "onesignal_test_key",
-      active: true
-    });
-
-    const awsService = this.createService({
-      name: "AWS Infrastructure",
-      type: "aws",
-      apiKey: "aws_test_key",
-      apiSecret: "aws_test_secret",
-      active: true
-    });
-
-    const sendbirdService = this.createService({
-      name: "Chat Service",
-      type: "sendbird",
-      apiKey: "sendbird_test_key",
-      active: true
-    });
-
-    const twilioService = this.createService({
-      name: "SMS Communications",
-      type: "twilio",
-      apiKey: "twilio_test_key",
-      apiSecret: "twilio_test_secret",
-      active: true
-    });
-
-    const mixpanelService = this.createService({
-      name: "User Analytics",
-      type: "mixpanel",
-      apiKey: "mixpanel_test_key",
-      active: true
-    });
-    // Create sample alerts
-    this.createAlert({
-      projectId: project1.id,
-      serviceId: awsService.id,
-      severity: 'critical',
-      message: 'Elevated error rates in payment processing Lambda function',
-      status: 'active'
-    });
-
-    this.createAlert({
-      projectId: project1.id,
-      serviceId: awsService.id,
-      severity: 'warning',
-      message: 'Database CPU utilization above 80% for last 15 minutes',
-      status: 'active'
-    });
-
-    this.createAlert({
-      projectId: project3.id,
-      serviceId: awsService.id,
-      severity: 'warning',
-      message: 'Increased latency on user profile endpoint',
-      status: 'active'
-    });
-
-    // Create sample threshold alerts
-    this.createThresholdAlert({
-      serviceId: awsService.id,
-      metricName: 'cpu_utilization',
-      condition: 'gt',
-      threshold: 80,
-      severity: 'warning',
-      message: 'CPU utilization exceeds 80%',
-      active: true
-    });
-
-    this.createThresholdAlert({
-      serviceId: stytchService.id,
-      metricName: 'login_failure_rate',
-      condition: 'gt',
-      threshold: 10,
-      severity: 'critical',
-      message: 'Login failure rate exceeds 10%',
-      active: true
-    });
-
-    this.createThresholdAlert({
-      serviceId: onesignalService.id,
-      metricName: 'delivery_failure_rate',
-      condition: 'gt',
-      threshold: 5,
-      severity: 'warning',
-      message: 'Notification delivery failure rate exceeds 5%',
-      active: true
-    });
-  }
-
-  // User methods
+export class DatabaseStorage implements IStorage {
+  // User methods implementation
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
-  // Project methods
+  // Project methods implementation
   async getProject(id: number): Promise<Project | undefined> {
-    return this.projects.get(id);
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project || undefined;
   }
 
   async getAllProjects(): Promise<Project[]> {
-    return Array.from(this.projects.values());
+    return await db.select().from(projects).orderBy(asc(projects.name));
   }
 
-  async createProject(insertProject: InsertProject): Promise<Project> {
-    const id = this.currentProjectId++;
-    const project: Project = { 
-      ...insertProject, 
-      id, 
-      status: insertProject.status || 'active',
-      healthScore: insertProject.healthScore || 100
-    };
-    this.projects.set(id, project);
-    return project;
+  async getProjectsByUserId(userId: number): Promise<Project[]> {
+    return await db.select().from(projects).where(eq(projects.userId, userId)).orderBy(asc(projects.name));
+  }
+
+  async createProject(project: InsertProject): Promise<Project> {
+    const [createdProject] = await db.insert(projects).values(project).returning();
+    return createdProject;
   }
 
   async updateProject(id: number, projectUpdate: Partial<Project>): Promise<Project | undefined> {
-    const project = this.projects.get(id);
-    if (!project) return undefined;
-
-    const updatedProject = { ...project, ...projectUpdate };
-    this.projects.set(id, updatedProject);
-    return updatedProject;
+    const [updatedProject] = await db
+      .update(projects)
+      .set(projectUpdate)
+      .where(eq(projects.id, id))
+      .returning();
+    return updatedProject || undefined;
   }
 
   async deleteProject(id: number): Promise<boolean> {
-    if (!this.projects.has(id)) return false;
-
-    // Delete all project-service associations for this project
-    const projectServiceEntries = Array.from(this.projectServices.values()).filter(
-      ps => ps.projectId === id
-    );
+    // First delete related records from other tables
+    await db.delete(serviceIntegrations).where(eq(serviceIntegrations.projectId, id));
+    await db.delete(alerts).where(eq(alerts.projectId, id));
+    await db.delete(dashboardWidgets).where(eq(dashboardWidgets.projectId, id));
+    await db.delete(metrics).where(eq(metrics.projectId, id));
     
-    for (const ps of projectServiceEntries) {
-      this.projectServices.delete(ps.id);
-    }
-
-    // Delete all alerts for this project
-    const alertEntries = Array.from(this.alerts.values()).filter(
-      a => a.projectId === id
-    );
-    
-    for (const alert of alertEntries) {
-      this.alerts.delete(alert.id);
-    }
-
-    return this.projects.delete(id);
+    // Then delete the project
+    const result = await db.delete(projects).where(eq(projects.id, id)).returning();
+    return result.length > 0;
   }
 
-  // Service methods
-  async getService(id: number): Promise<Service | undefined> {
-    return this.services.get(id);
+  // Service Integration methods implementation
+  async getServiceIntegration(id: number): Promise<ServiceIntegration | undefined> {
+    const [service] = await db.select().from(serviceIntegrations).where(eq(serviceIntegrations.id, id));
+    return service || undefined;
   }
 
-  async getAllServices(): Promise<Service[]> {
-    return Array.from(this.services.values());
+  async getAllServiceIntegrations(): Promise<ServiceIntegration[]> {
+    return await db.select().from(serviceIntegrations);
   }
 
-  async getServicesByType(type: ServiceType): Promise<Service[]> {
-    return Array.from(this.services.values()).filter(
-      service => service.type === type
-    );
+  async getServiceIntegrationsByType(type: ServiceType): Promise<ServiceIntegration[]> {
+    return await db.select().from(serviceIntegrations)
+      .where(eq(serviceIntegrations.serviceType, type));
   }
 
-  async getServicesByProjectId(projectId: number): Promise<Service[]> {
-    const projectServiceEntries = Array.from(this.projectServices.values()).filter(
-      ps => ps.projectId === projectId
-    );
-    
-    const serviceIds = projectServiceEntries.map(ps => ps.serviceId);
-    
-    return Array.from(this.services.values()).filter(
-      service => serviceIds.includes(service.id)
-    );
+  async getServiceIntegrationsByProjectId(projectId: number): Promise<ServiceIntegration[]> {
+    return await db.select().from(serviceIntegrations)
+      .where(eq(serviceIntegrations.projectId, projectId));
   }
 
-  async createService(insertService: InsertService): Promise<Service> {
-    const id = this.currentServiceId++;
-    const service: Service = { 
-      ...insertService, 
-      id,
-      active: insertService.active !== undefined ? insertService.active : true
-    };
-    this.services.set(id, service);
-    return service;
+  async createServiceIntegration(service: InsertServiceIntegration): Promise<ServiceIntegration> {
+    const [createdService] = await db.insert(serviceIntegrations).values(service).returning();
+    return createdService;
   }
 
-  async updateService(id: number, serviceUpdate: Partial<Service>): Promise<Service | undefined> {
-    const service = this.services.get(id);
-    if (!service) return undefined;
-
-    const updatedService = { ...service, ...serviceUpdate };
-    this.services.set(id, updatedService);
-    return updatedService;
+  async updateServiceIntegration(id: number, serviceUpdate: Partial<ServiceIntegration>): Promise<ServiceIntegration | undefined> {
+    const [updatedService] = await db
+      .update(serviceIntegrations)
+      .set(serviceUpdate)
+      .where(eq(serviceIntegrations.id, id))
+      .returning();
+    return updatedService || undefined;
   }
 
-  async deleteService(id: number): Promise<boolean> {
-    if (!this.services.has(id)) return false;
-
-    // Delete all project-service associations for this service
-    const projectServiceEntries = Array.from(this.projectServices.values()).filter(
-      ps => ps.serviceId === id
+  async deleteServiceIntegration(id: number): Promise<boolean> {
+    // First delete related alerts
+    await db.delete(alerts).where(
+      and(
+        eq(alerts.serviceType, 
+          // First get the service type of the integration
+          db.select({ type: serviceIntegrations.serviceType })
+            .from(serviceIntegrations)
+            .where(eq(serviceIntegrations.id, id))
+            .limit(1)
+        )
+      )
     );
     
-    for (const ps of projectServiceEntries) {
-      this.projectServices.delete(ps.id);
-    }
-
-    // Delete all alerts for this service
-    const alertEntries = Array.from(this.alerts.values()).filter(
-      a => a.serviceId === id
-    );
-    
-    for (const alert of alertEntries) {
-      this.alerts.delete(alert.id);
-    }
-
-    // Delete all threshold alerts for this service
-    const thresholdAlertEntries = Array.from(this.thresholdAlerts.values()).filter(
-      ta => ta.serviceId === id
-    );
-    
-    for (const ta of thresholdAlertEntries) {
-      this.thresholdAlerts.delete(ta.id);
-    }
-
-    return this.services.delete(id);
+    // Then delete the service integration
+    const result = await db.delete(serviceIntegrations).where(eq(serviceIntegrations.id, id)).returning();
+    return result.length > 0;
   }
 
-  // Project-Service relationship methods
-  async assignServiceToProject(projectId: number, serviceId: number): Promise<ProjectService> {
-    // Check if project and service exist
-    const project = this.projects.get(projectId);
-    const service = this.services.get(serviceId);
-    
-    if (!project || !service) {
-      throw new Error('Project or service not found');
-    }
-    
-    // Check if relationship already exists
-    const existing = Array.from(this.projectServices.values()).find(
-      ps => ps.projectId === projectId && ps.serviceId === serviceId
-    );
-    
-    if (existing) {
-      return existing;
-    }
-    
-    const id = this.currentProjectServiceId++;
-    const projectService: ProjectService = { id, projectId, serviceId };
-    this.projectServices.set(id, projectService);
-    return projectService;
-  }
-
-  async removeServiceFromProject(projectId: number, serviceId: number): Promise<boolean> {
-    const projectService = Array.from(this.projectServices.values()).find(
-      ps => ps.projectId === projectId && ps.serviceId === serviceId
-    );
-    
-    if (!projectService) return false;
-    
-    return this.projectServices.delete(projectService.id);
-  }
-
-  // Alert methods
+  // Alert methods implementation
   async getAlert(id: number): Promise<Alert | undefined> {
-    return this.alerts.get(id);
+    const [alert] = await db.select().from(alerts).where(eq(alerts.id, id));
+    return alert || undefined;
   }
 
   async getAllAlerts(): Promise<Alert[]> {
-    return Array.from(this.alerts.values());
+    return await db.select().from(alerts);
   }
 
   async getAlertsByProjectId(projectId: number): Promise<Alert[]> {
-    return Array.from(this.alerts.values()).filter(
-      alert => alert.projectId === projectId
-    );
+    return await db.select().from(alerts).where(eq(alerts.projectId, projectId));
   }
 
-  async getAlertsByServiceId(serviceId: number): Promise<Alert[]> {
-    return Array.from(this.alerts.values()).filter(
-      alert => alert.serviceId === serviceId
-    );
+  async getAlertsByServiceType(serviceType: ServiceType): Promise<Alert[]> {
+    return await db.select().from(alerts).where(eq(alerts.serviceType, serviceType));
   }
 
-  async createAlert(insertAlert: InsertAlert): Promise<Alert> {
-    const id = this.currentAlertId++;
-    const alert: Alert = { 
-      ...insertAlert, 
-      id,
-      timestamp: insertAlert.timestamp || new Date(),
-      status: insertAlert.status || 'active'
-    };
-    this.alerts.set(id, alert);
-    return alert;
+  async createAlert(alert: InsertAlert): Promise<Alert> {
+    const [createdAlert] = await db.insert(alerts).values(alert).returning();
+    return createdAlert;
   }
 
   async updateAlert(id: number, alertUpdate: Partial<Alert>): Promise<Alert | undefined> {
-    const alert = this.alerts.get(id);
-    if (!alert) return undefined;
-
-    const updatedAlert = { ...alert, ...alertUpdate };
-    this.alerts.set(id, updatedAlert);
-    return updatedAlert;
+    const [updatedAlert] = await db
+      .update(alerts)
+      .set(alertUpdate)
+      .where(eq(alerts.id, id))
+      .returning();
+    return updatedAlert || undefined;
   }
 
   async deleteAlert(id: number): Promise<boolean> {
-    return this.alerts.delete(id);
+    const result = await db.delete(alerts).where(eq(alerts.id, id)).returning();
+    return result.length > 0;
   }
 
-  // CustomView methods
-  async getCustomViewById(id: number): Promise<CustomView | undefined> {
-    return this.customViews.get(id);
+  // Dashboard Widget methods implementation
+  async getDashboardWidget(id: number): Promise<DashboardWidget | undefined> {
+    const [widget] = await db.select().from(dashboardWidgets).where(eq(dashboardWidgets.id, id));
+    return widget || undefined;
   }
 
-  async getCustomViewsByUserId(userId: number): Promise<CustomView[]> {
-    return Array.from(this.customViews.values()).filter(
-      view => view.userId === userId
-    );
+  async getAllDashboardWidgets(): Promise<DashboardWidget[]> {
+    return await db.select().from(dashboardWidgets);
   }
 
-  async createCustomView(insertView: InsertCustomView): Promise<CustomView> {
-    const id = this.currentCustomViewId++;
-    const customView: CustomView = { ...insertView, id };
-    this.customViews.set(id, customView);
-    return customView;
+  async getDashboardWidgetsByProjectId(projectId: number): Promise<DashboardWidget[]> {
+    return await db.select().from(dashboardWidgets).where(eq(dashboardWidgets.projectId, projectId));
   }
 
-  async updateCustomView(id: number, viewUpdate: Partial<CustomView>): Promise<CustomView | undefined> {
-    const view = this.customViews.get(id);
-    if (!view) return undefined;
-
-    const updatedView = { ...view, ...viewUpdate };
-    this.customViews.set(id, updatedView);
-    return updatedView;
+  async createDashboardWidget(widget: InsertDashboardWidget): Promise<DashboardWidget> {
+    const [createdWidget] = await db.insert(dashboardWidgets).values(widget).returning();
+    return createdWidget;
   }
 
-  async deleteCustomView(id: number): Promise<boolean> {
-    return this.customViews.delete(id);
+  async updateDashboardWidget(id: number, widgetUpdate: Partial<DashboardWidget>): Promise<DashboardWidget | undefined> {
+    const [updatedWidget] = await db
+      .update(dashboardWidgets)
+      .set(widgetUpdate)
+      .where(eq(dashboardWidgets.id, id))
+      .returning();
+    return updatedWidget || undefined;
   }
 
-  // ThresholdAlert methods
-  async getThresholdAlert(id: number): Promise<ThresholdAlert | undefined> {
-    return this.thresholdAlerts.get(id);
+  async deleteDashboardWidget(id: number): Promise<boolean> {
+    const result = await db.delete(dashboardWidgets).where(eq(dashboardWidgets.id, id)).returning();
+    return result.length > 0;
   }
 
-  async getAllThresholdAlerts(): Promise<ThresholdAlert[]> {
-    return Array.from(this.thresholdAlerts.values());
+  // Metrics methods implementation
+  async getMetric(id: number): Promise<Metric | undefined> {
+    const [metric] = await db.select().from(metrics).where(eq(metrics.id, id));
+    return metric || undefined;
   }
 
-  async getThresholdAlertsByServiceId(serviceId: number): Promise<ThresholdAlert[]> {
-    return Array.from(this.thresholdAlerts.values()).filter(
-      alert => alert.serviceId === serviceId
-    );
+  async getAllMetrics(): Promise<Metric[]> {
+    return await db.select().from(metrics);
   }
 
-  async createThresholdAlert(insertAlert: InsertThresholdAlert): Promise<ThresholdAlert> {
-    const id = this.currentThresholdAlertId++;
-    const thresholdAlert: ThresholdAlert = { 
-      ...insertAlert, 
-      id,
-      active: insertAlert.active !== undefined ? insertAlert.active : true
-    };
-    this.thresholdAlerts.set(id, thresholdAlert);
-    return thresholdAlert;
+  async getMetricsByProjectId(
+    projectId: number,
+    serviceType?: string,
+    metricType?: string,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<Metric[]> {
+    // Build conditions array
+    const conditions = [eq(metrics.projectId, projectId)];
+    
+    // Add additional filters if provided
+    if (serviceType) {
+      conditions.push(eq(metrics.serviceType, serviceType));
+    }
+    
+    if (metricType) {
+      conditions.push(eq(metrics.metricType, metricType));
+    }
+    
+    if (startDate) {
+      conditions.push(sql`${metrics.timestamp} >= ${startDate}`);
+    }
+    
+    if (endDate) {
+      conditions.push(sql`${metrics.timestamp} <= ${endDate}`);
+    }
+    
+    // Apply all conditions with AND
+    return await db.select().from(metrics).where(and(...conditions));
   }
 
-  async updateThresholdAlert(id: number, alertUpdate: Partial<ThresholdAlert>): Promise<ThresholdAlert | undefined> {
-    const alert = this.thresholdAlerts.get(id);
-    if (!alert) return undefined;
-
-    const updatedAlert = { ...alert, ...alertUpdate };
-    this.thresholdAlerts.set(id, updatedAlert);
-    return updatedAlert;
+  async getMetricsByServiceType(serviceType: ServiceType): Promise<Metric[]> {
+    return await db.select().from(metrics).where(eq(metrics.serviceType, serviceType));
   }
 
-  async deleteThresholdAlert(id: number): Promise<boolean> {
-    return this.thresholdAlerts.delete(id);
+  async createMetric(metric: InsertMetric): Promise<Metric> {
+    const [createdMetric] = await db.insert(metrics).values(metric).returning();
+    return createdMetric;
+  }
+
+  async deleteMetric(id: number): Promise<boolean> {
+    const result = await db.delete(metrics).where(eq(metrics.id, id)).returning();
+    return result.length > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage: IStorage = new DatabaseStorage();
