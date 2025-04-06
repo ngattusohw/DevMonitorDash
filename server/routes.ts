@@ -62,10 +62,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid user ID" });
       }
       
+      console.log(`Getting projects for userId: ${userId}`);
       const projects = await storage.getProjectsByUserId(userId);
+      console.log(`Found ${projects.length} projects`);
       res.json(projects);
     } catch (error) {
-      res.status(500).json({ message: "Failed to get projects" });
+      console.error("Error getting projects:", error);
+      res.status(500).json({ message: "Failed to get projects", error: error instanceof Error ? error.message : String(error) });
     }
   });
 

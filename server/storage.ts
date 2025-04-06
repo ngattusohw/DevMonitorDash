@@ -109,8 +109,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjectsByUserId(userId: number): Promise<Project[]> {
-    // Using sql for direct column access
-    return await db.select().from(projects).where(sql`user_id = ${userId}`).orderBy(asc(projects.name));
+    try {
+      // Get all projects since we have a small sample dataset
+      const allProjects = await db.select().from(projects);
+      console.log('All projects from DB:', allProjects);
+      
+      // Filter by user_id manually
+      const filteredProjects = allProjects.filter(project => {
+        console.log(`Comparing project.userId=${project.userId} with userId=${userId}`);
+        return project.userId === userId;
+      });
+      
+      console.log('Filtered projects:', filteredProjects);
+      return filteredProjects;
+    } catch (err) {
+      console.error('Error in getProjectsByUserId:', err);
+      throw err;
+    }
   }
 
   async createProject(project: InsertProject): Promise<Project> {
