@@ -90,7 +90,7 @@ export function useProjectMetrics(
       endDate, 
       refreshTrigger
     ],
-    queryFn: () => apiRequest(`/api/metrics?${queryString}`),
+    queryFn: () => apiRequest("GET", `/api/metrics?${queryString}`),
     enabled: !!projectId,
   });
 }
@@ -103,7 +103,7 @@ export function useServiceMetrics(
   return useQuery({
     queryKey: ["/api/service-metrics", projectId, serviceType, dateRangeType],
     queryFn: () =>
-      apiRequest(`/api/projects/${projectId}/metrics/${serviceType}?range=${dateRangeType || "7d"}`),
+      apiRequest("GET", `/api/projects/${projectId}/metrics/${serviceType}?range=${dateRangeType || "7d"}`),
     enabled: !!projectId && !!serviceType,
   });
 }
