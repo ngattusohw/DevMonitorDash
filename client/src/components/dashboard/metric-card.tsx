@@ -121,48 +121,52 @@ export function MetricCard({
         ) : (
           <>
             <div className="text-2xl font-bold mb-2">{formattedValue}</div>
-            <div className="h-12">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={chartColor} stopOpacity={0.3} />
-                      <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <Tooltip 
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const formattedValue = type === "percentage" 
-                          ? `${payload[0].value}%` 
-                          : type === "currency"
-                          ? new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "USD",
-                              minimumFractionDigits: 0,
-                            }).format(payload[0].value as number)
-                          : new Intl.NumberFormat("en-US").format(payload[0].value as number);
-                          
-                        return (
-                          <div className="bg-white p-2 shadow-md rounded-md border text-xs">
-                            <div>{formattedValue}</div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke={chartColor}
-                    fillOpacity={1}
-                    fill={`url(#gradient-${title})`}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {data && data.length > 0 ? (
+              <div className="h-12">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={chartColor} stopOpacity={0.3} />
+                        <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const formattedValue = type === "percentage" 
+                            ? `${payload[0].value}%` 
+                            : type === "currency"
+                            ? new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: "USD",
+                                minimumFractionDigits: 0,
+                              }).format(payload[0].value as number)
+                            : new Intl.NumberFormat("en-US").format(payload[0].value as number);
+                            
+                          return (
+                            <div className="bg-white p-2 shadow-md rounded-md border text-xs">
+                              <div>{formattedValue}</div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke={chartColor}
+                      fillOpacity={1}
+                      fill={`url(#gradient-${title})`}
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-1 mt-2 mb-2"></div>
+            )}
           </>
         )}
       </CardContent>

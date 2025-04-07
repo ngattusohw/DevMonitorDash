@@ -6,7 +6,10 @@ import {
   ArrowRight, 
   AlertTriangle, 
   Plus, 
-  Settings 
+  Settings,
+  BarChart,
+  LineChart,
+  XCircle
 } from "lucide-react";
 import { Project, ServiceType } from "@/types";
 import { useServiceMetrics } from "@/hooks/use-project-metrics";
@@ -17,7 +20,19 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 // Predefined metric configurations 
 const AVAILABLE_METRICS: MetricConfig[] = [
@@ -47,6 +62,8 @@ interface ProjectCardProps {
 export function ProjectCard({ project, alertCount = 0 }: ProjectCardProps) {
   const [_, setLocation] = useLocation();
   const { dateRange } = useDashboard();
+  const [showCharts, setShowCharts] = useState(true);
+  const [configOpen, setConfigOpen] = useState(false);
   const [selectedMetrics, setSelectedMetrics] = useState<MetricConfig[]>([
     AVAILABLE_METRICS[0], // Default to Active Users
     AVAILABLE_METRICS[1], // Default to API Requests
@@ -68,6 +85,10 @@ export function ProjectCard({ project, alertCount = 0 }: ProjectCardProps) {
     setLocation(`/project/${project.id}`);
   };
 
+  const handleConfigClose = () => {
+    setConfigOpen(false);
+  };
+
   return (
     <Card className="overflow-hidden transition-all duration-200 hover:shadow-md">
       <CardHeader className="pb-2">
@@ -83,28 +104,14 @@ export function ProjectCard({ project, alertCount = 0 }: ProjectCardProps) {
                 {alertCount} {alertCount === 1 ? "Alert" : "Alerts"}
               </div>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-1.5 text-sm font-semibold">Customize Metrics</div>
-                {AVAILABLE_METRICS.filter(
-                  metric => !selectedMetrics.some(m => m.id === metric.id)
-                ).map(metric => (
-                  <DropdownMenuItem 
-                    key={metric.id}
-                    onClick={() => addMetric(metric)}
-                    disabled={selectedMetrics.length >= 4}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add {metric.title}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8"
+              onClick={() => setConfigOpen(true)}
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -115,6 +122,7 @@ export function ProjectCard({ project, alertCount = 0 }: ProjectCardProps) {
               key={metric.id}
               projectId={project.id}
               metric={metric}
+              showChart={showCharts}
               onRemove={() => removeMetric(metric.id)}
             />
           ))}
@@ -130,6 +138,81 @@ export function ProjectCard({ project, alertCount = 0 }: ProjectCardProps) {
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
         </Button>
       </CardFooter>
+
+      {/* Project Configuration Dialog */}
+      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configure {project.name}</DialogTitle>
+            <DialogDescription>
+              Customize which metrics to display and how they appear
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="showCharts" className="font-medium">
+                {showCharts ? 
+                  <div className="flex items-center">
+                    <LineChart className="h-4 w-4 mr-2" />
+                    Show metric charts
+                  </div> : 
+                  <div className="flex items-center">
+                    <BarChart className="h-4 w-4 mr-2" />
+                    Show metrics as numbers
+                  </div>
+                }
+              </Label>
+              <Switch
+                id="showCharts"
+                checked={showCharts}
+                onCheckedChange={setShowCharts}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-medium">Available Metrics</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {AVAILABLE_METRICS.filter(
+                  metric => !selectedMetrics.some(m => m.id === metric.id)
+                ).map(metric => (
+                  <Button
+                    key={metric.id}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addMetric(metric)}
+                    disabled={selectedMetrics.length >= 4}
+                    className="justify-start">
+                    <Plus className="mr-2 h-3 w-3" />
+                    {metric.title}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-medium">Selected Metrics</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {selectedMetrics.map(metric => (
+                  <Button
+                    key={metric.id}
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => removeMetric(metric.id)}
+                    className="justify-between">
+                    {metric.title}
+                    <XCircle className="ml-2 h-3 w-3" />
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button onClick={handleConfigClose}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -137,10 +220,11 @@ export function ProjectCard({ project, alertCount = 0 }: ProjectCardProps) {
 interface ProjectMetricProps {
   projectId: number;
   metric: MetricConfig;
+  showChart: boolean;
   onRemove: () => void;
 }
 
-function ProjectMetric({ projectId, metric, onRemove }: ProjectMetricProps) {
+function ProjectMetric({ projectId, metric, showChart, onRemove }: ProjectMetricProps) {
   const { dateRange } = useDashboard();
   const { data, isLoading } = useServiceMetrics(projectId, metric.serviceType, dateRange);
   
@@ -206,7 +290,7 @@ function ProjectMetric({ projectId, metric, onRemove }: ProjectMetricProps) {
           className="h-6 w-6 rounded-full bg-white"
           onClick={onRemove}
         >
-          <AlertTriangle className="h-3 w-3 text-red-500" />
+          <XCircle className="h-3 w-3 text-red-500" />
         </Button>
       </div>
       
@@ -216,7 +300,7 @@ function ProjectMetric({ projectId, metric, onRemove }: ProjectMetricProps) {
         change={metricData.change}
         type={metric.type}
         icon={metric.icon}
-        data={metricData.chartData}
+        data={showChart ? metricData.chartData : []}
         isLoading={isLoading}
       />
     </div>

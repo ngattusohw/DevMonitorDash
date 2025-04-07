@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import DashboardLayout from "@/components/layouts/dashboard-layout";
 import StatCard from "@/components/dashboard/stat-card";
 import ProjectCard from "@/components/dashboard/project-card";
 import AlertBanner from "@/components/dashboard/alert-banner";
@@ -38,29 +37,27 @@ export default function Overview() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <div className="py-6">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-            <div className="animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-              
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-36 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-              
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-4 mt-8"></div>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-64 bg-gray-200 rounded"></div>
-                ))}
-              </div>
+      <div className="py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-36 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+            
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4 mt-8"></div>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-64 bg-gray-200 rounded"></div>
+              ))}
             </div>
           </div>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
@@ -101,9 +98,8 @@ export default function Overview() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+    <div className="py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
             <div>
@@ -226,6 +222,6 @@ export default function Overview() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
