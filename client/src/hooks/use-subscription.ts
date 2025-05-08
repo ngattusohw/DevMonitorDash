@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, UseQueryOptions } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -23,12 +23,18 @@ export function useSubscription() {
 
   const { data: subscription, isLoading } = useQuery<SubscriptionStatus>({
     queryKey: ['/api/subscription/status'],
-    onError: (error) => {
-      toast({
-        title: 'Error fetching subscription status',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
+    queryFn: async () => {
+      try {
+        const response = await apiRequest('GET', '/api/subscription/status');
+        return response.json();
+      } catch (error) {
+        toast({
+          title: 'Error fetching subscription status',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+        throw error;
+      }
     },
   });
 
