@@ -1,16 +1,20 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, ServiceType } from "./storage";
 import { 
   insertUserSchema, 
   insertProjectSchema, 
   insertServiceIntegrationSchema,
   insertAlertSchema,
   insertDashboardWidgetSchema,
-  insertMetricSchema
+  insertMetricSchema,
+  ServiceIntegration
 } from "@shared/schema";
 import { z } from "zod";
 import cron from "node-cron";
+import express from "express";
+import Stripe from "stripe";
+import { stripeService } from "./services/stripe";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up all API routes
@@ -559,6 +563,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Set up data refresh job (daily)
   setupDataRefreshJob();
+
+  // Subscription endpoints
+  app.get('/api/subscription/status', async (req: Request, res: Response) => {
+    const userId = 1; // In a real app, get from authenticated user
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    
+    // Count user's projects and integrations
+    const projects = await storage.getProjectsByUserId(userId);
+    const projectIds = projects.map(p => p.id);
+    
+    let integrations: ServiceIntegration[] = [];
+    for (const projectId of projectIds) {
+      const projectIntegrations = await storage.getServiceIntegrationsByProjectId(projectId);
+      integrations = [...integrations, ...projectIntegrations];
+    }
+    
+    const freeProjectLimit = 1;
+    const freeIntegrationLimit = 3;
+    
+    res.json({
+      status: user.subscriptionStatus,
+      projects: {
+        current: projects.length,
+        limit: user.subscriptionStatus === 'premium' ? 'unlimited' : freeProjectLimit,
+        remaining: user.subscriptionStatus === 'premium' ? 'unlimited' : Math.max(0, freeProjectLimit - projects.length)
+      },
+      integrations: {
+        current: integrations.length,
+        limit: user.subscriptionStatus === 'premium' ? 'unlimited' : freeIntegrationLimit,
+        remaining: user.subscriptionStatus === 'premium' ? 'unlimited' : Math.max(0, freeIntegrationLimit - integrations.length)
+      },
+      tokens: user.availableTokens
+    });
+  });
+  
+  app.post('/api/subscription/checkout', async (req: Request, res: Response) => {
+    const userId = 1; // In a real app, get from authenticated user
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    
+    try {
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripeService.createCheckoutSession(user, `${baseUrl}/settings`);
+      
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error('Stripe checkout error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  app.post('/api/subscription/billing-portal', async (req: Request, res: Response) => {
+    const userId = 1; // In a real app, get from authenticated user
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    
+    if (!user.stripeCustomerId) {
+      return res.status(400).json({ message: 'No subscription found' });
+    }
+    
+    try {
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripeService.createBillingPortalSession(user, `${baseUrl}/settings`);
+      
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error('Stripe portal error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Stripe webhook endpoint - use raw body parser for Stripe
+  const stripeWebhookMiddleware = express.raw({ type: 'application/json' });
+  app.post('/api/webhook/stripe', stripeWebhookMiddleware, async (req: Request, res: Response) => {
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    
+    if (!webhookSecret) {
+      console.warn('Stripe webhook secret not configured, skipping signature verification');
+      // For development, we'll proceed without verification
+    }
+    
+    const signature = req.headers['stripe-signature'] as string;
+    
+    let event: Stripe.Event;
+    
+    try {
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, { apiVersion: '2023-10-16' as any });
+      
+      if (webhookSecret && signature) {
+        event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
+      } else {
+        // For development without webhook secret
+        event = req.body as Stripe.Event;
+      }
+    } catch (error: any) {
+      console.error('Webhook signature verification failed:', error.message);
+      return res.status(400).json({ message: error.message });
+    }
+    
+    try {
+      const result = await stripeService.handleWebhookEvent(event);
+      
+      if (result) {
+        const user = await storage.getUserByStripeCustomerId(result.customerId);
+        
+        if (user) {
+          await storage.updateUserSubscription(user.id, {
+            subscriptionStatus: result.status,
+            stripeSubscriptionId: result.subscriptionId
+          });
+          
+          // If upgrading to premium, give user some tokens
+          if (result.status === 'premium') {
+            await storage.updateUserTokens(user.id, 20);
+          }
+        }
+      }
+      
+      res.json({ received: true });
+    } catch (error: any) {
+      console.error('Webhook event processing failed:', error.message);
+      return res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Middleware to enforce subscription limits
+  app.use('/api/projects/create', async (req: Request, res: Response, next: NextFunction) => {
+    const userId = 1; // In a real app, get from authenticated user
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    
+    // Only check limits for free users
+    if (user.subscriptionStatus === 'free') {
+      const projects = await storage.getProjectsByUserId(userId);
+      
+      if (projects.length >= 1) { // Free tier limit of 1 project
+        return res.status(403).json({ 
+          message: 'Free tier limit reached',
+          error: 'You have reached the maximum number of projects allowed on the free tier. Please upgrade to premium for unlimited projects.'
+        });
+      }
+    }
+    
+    next();
+  });
+
+  app.use('/api/service-integrations/create', async (req: Request, res: Response, next: NextFunction) => {
+    const userId = 1; // In a real app, get from authenticated user
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    
+    // Only check limits for free users
+    if (user.subscriptionStatus === 'free') {
+      const projects = await storage.getProjectsByUserId(userId);
+      const projectIds = projects.map(p => p.id);
+      
+      let integrationCount = 0;
+      for (const projectId of projectIds) {
+        const integrations = await storage.getServiceIntegrationsByProjectId(projectId);
+        integrationCount += integrations.length;
+      }
+      
+      if (integrationCount >= 3) { // Free tier limit of 3 integrations
+        return res.status(403).json({ 
+          message: 'Free tier limit reached',
+          error: 'You have reached the maximum number of service integrations allowed on the free tier. Please upgrade to premium for unlimited integrations.'
+        });
+      }
+    }
+    
+    next();
+  });
 
   const httpServer = createServer(app);
   return httpServer;
