@@ -27,7 +27,14 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserSubscription(userId: number, data: { 
+    subscriptionStatus: string; 
+    stripeCustomerId?: string; 
+    stripeSubscriptionId?: string; 
+  }): Promise<User | undefined>;
+  updateUserTokens(userId: number, tokens: number): Promise<User | undefined>;
 
   // Project methods
   getProject(id: number): Promise<Project | undefined>;
@@ -93,9 +100,48 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, stripeCustomerId));
+    return user || undefined;
+  }
+
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async updateUserSubscription(userId: number, data: { 
+    subscriptionStatus: string; 
+    stripeCustomerId?: string; 
+    stripeSubscriptionId?: string; 
+  }): Promise<User | undefined> {
+    const updateData: any = { subscriptionStatus: data.subscriptionStatus };
+    
+    if (data.stripeCustomerId) {
+      updateData.stripeCustomerId = data.stripeCustomerId;
+    }
+    
+    if (data.stripeSubscriptionId) {
+      updateData.stripeSubscriptionId = data.stripeSubscriptionId;
+    }
+    
+    const [updatedUser] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return updatedUser || undefined;
+  }
+
+  async updateUserTokens(userId: number, tokens: number): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ availableTokens: tokens })
+      .where(eq(users.id, userId))
+      .returning();
+      
+    return updatedUser || undefined;
   }
 
   // Project methods implementation

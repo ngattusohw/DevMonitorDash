@@ -9,6 +9,10 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   email: text("email").notNull(),
   fullName: text("full_name"),
+  subscriptionStatus: text("subscription_status").default("free").notNull(), // "free", "premium"
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  availableTokens: integer("available_tokens").default(3).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
