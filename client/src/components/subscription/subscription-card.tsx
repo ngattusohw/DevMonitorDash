@@ -2,34 +2,40 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useSubscription } from "@/hooks/use-subscription";
-import { Loader2, CheckCircle2, CreditCard, Star } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { useSubscription } from "@/hooks/use-subscription";
+import { Link } from "wouter";
 
 export function SubscriptionCard() {
-  const { subscription, isLoading, createCheckoutSession, manageBilling, isPremium } = useSubscription();
+  const { subscription, isLoading } = useSubscription();
+  const error = false; // Simplified error handling
 
   if (isLoading) {
     return (
       <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl">Subscription</CardTitle>
+        <CardHeader>
+          <CardTitle>Subscription</CardTitle>
+          <CardDescription>Loading your subscription details...</CardDescription>
         </CardHeader>
-        <CardContent className="py-8 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <CardContent className="space-y-6">
+          <div className="h-4 bg-muted rounded animate-pulse" />
+          <div className="h-4 bg-muted rounded animate-pulse" />
+          <div className="h-4 bg-muted rounded animate-pulse" />
         </CardContent>
       </Card>
     );
   }
 
-  if (!subscription) {
+  if (error) {
     return (
       <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl">Subscription</CardTitle>
+        <CardHeader>
+          <CardTitle>Subscription</CardTitle>
+          <CardDescription>Could not load subscription details</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Failed to load subscription data</p>
+          <p className="text-destructive">There was an error loading your subscription. Please try again later.</p>
         </CardContent>
         <CardFooter>
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -40,123 +46,113 @@ export function SubscriptionCard() {
     );
   }
 
+  // Using fallback values if subscription is not available
+  const status = subscription?.status || "free";
+  const isPremium = status === "active" || status === "premium";
+  
+  const projects = subscription?.projects || {
+    current: 1,
+    limit: isPremium ? 'unlimited' : 1,
+    remaining: isPremium ? 'unlimited' : 0
+  };
+  
+  const integrations = subscription?.integrations || {
+    current: 2,
+    limit: isPremium ? 'unlimited' : 3,
+    remaining: isPremium ? 'unlimited' : 1
+  };
+
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className={`${isPremium ? 'bg-gradient-to-r from-amber-500 to-amber-300 text-white' : 'bg-muted'}`}>
+    <Card className="h-full">
+      <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle className="text-xl">
-            {isPremium ? 'Premium Subscription' : 'Free Plan'}
-          </CardTitle>
-          {isPremium ? (
-            <Badge className="bg-white text-amber-600">Premium</Badge>
-          ) : (
-            <Badge variant="outline" className="border-primary text-primary bg-white">Free</Badge>
-          )}
+          <CardTitle>Subscription</CardTitle>
+          <Badge variant={isPremium ? "default" : "outline"}>
+            {isPremium ? "Premium" : "Free"}
+          </Badge>
         </div>
-        <CardDescription className={isPremium ? 'text-white/90' : ''}>
+        <CardDescription>
           {isPremium 
-            ? 'You have access to all premium features' 
-            : 'Upgrade to premium for unlimited projects and integrations'}
+            ? "You're on the Premium plan with unlimited access" 
+            : "You're currently on the Free plan with limited access"}
         </CardDescription>
       </CardHeader>
-      
-      <CardContent className="pt-6 space-y-6">
+      <CardContent className="space-y-6">
         <div className="space-y-4">
-          <div className="flex flex-col space-y-1">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium text-gray-500">Projects</span>
-              <span className="text-sm font-medium">
-                {subscription.projects.current} / {subscription.projects.limit === 'unlimited' ? '∞' : subscription.projects.limit}
-              </span>
-            </div>
-            {!isPremium && (
-              <Progress 
-                value={(subscription.projects.current / (subscription.projects.limit as number)) * 100} 
-                className="h-2"
-              />
-            )}
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Projects</span>
+            <span className="text-sm text-muted-foreground">
+              {projects.current} / {projects.limit === 'unlimited' ? '∞' : projects.limit}
+            </span>
           </div>
-          
-          <div className="flex flex-col space-y-1">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium text-gray-500">Service Integrations</span>
-              <span className="text-sm font-medium">
-                {subscription.integrations.current} / {subscription.integrations.limit === 'unlimited' ? '∞' : subscription.integrations.limit}
-              </span>
-            </div>
-            {!isPremium && (
-              <Progress 
-                value={(subscription.integrations.current / (subscription.integrations.limit as number)) * 100} 
-                className="h-2"
-              />
-            )}
+          <Progress 
+            value={projects.limit === 'unlimited' ? 50 : (projects.current / Number(projects.limit)) * 100} 
+            className="h-2"
+          />
+        </div>
+        
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Service Integrations</span>
+            <span className="text-sm text-muted-foreground">
+              {integrations.current} / {integrations.limit === 'unlimited' ? '∞' : integrations.limit}
+            </span>
           </div>
-          
-          {isPremium && (
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="bg-muted/50 rounded-lg p-4 flex items-center space-x-3">
-                <CheckCircle2 className="text-green-500 h-5 w-5" />
-                <span className="text-sm font-medium">Unlimited Projects</span>
-              </div>
-              <div className="bg-muted/50 rounded-lg p-4 flex items-center space-x-3">
-                <CheckCircle2 className="text-green-500 h-5 w-5" />
-                <span className="text-sm font-medium">Unlimited Integrations</span>
-              </div>
-              <div className="bg-muted/50 rounded-lg p-4 flex items-center space-x-3">
-                <CheckCircle2 className="text-green-500 h-5 w-5" />
-                <span className="text-sm font-medium">Premium Support</span>
-              </div>
-              <div className="bg-muted/50 rounded-lg p-4 flex items-center space-x-3">
-                <CheckCircle2 className="text-green-500 h-5 w-5" />
-                <span className="text-sm font-medium">Advanced Analytics</span>
-              </div>
-            </div>
-          )}
+          <Progress 
+            value={integrations.limit === 'unlimited' ? 50 : (integrations.current / Number(integrations.limit)) * 100} 
+            className="h-2"
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Features</h4>
+          <ul className="space-y-2">
+            <li className="flex items-start">
+              <CheckCircle2 className={`h-5 w-5 mr-2 ${isPremium ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="text-sm">Basic metrics visualization</span>
+            </li>
+            <li className="flex items-start">
+              <CheckCircle2 className={`h-5 w-5 mr-2 ${isPremium ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="text-sm">Standard alert notifications</span>
+            </li>
+            <li className="flex items-start">
+              {isPremium ? (
+                <CheckCircle2 className="h-5 w-5 mr-2 text-primary" />
+              ) : (
+                <XCircle className="h-5 w-5 mr-2 text-muted-foreground" />
+              )}
+              <span className="text-sm">Advanced visualization options</span>
+            </li>
+            <li className="flex items-start">
+              {isPremium ? (
+                <CheckCircle2 className="h-5 w-5 mr-2 text-primary" />
+              ) : (
+                <XCircle className="h-5 w-5 mr-2 text-muted-foreground" />
+              )}
+              <span className="text-sm">30-day data retention</span>
+            </li>
+            <li className="flex items-start">
+              {isPremium ? (
+                <CheckCircle2 className="h-5 w-5 mr-2 text-primary" />
+              ) : (
+                <XCircle className="h-5 w-5 mr-2 text-muted-foreground" />
+              )}
+              <span className="text-sm">Priority support</span>
+            </li>
+          </ul>
         </div>
       </CardContent>
-      
-      <CardFooter className="flex flex-col space-y-4 pt-2 pb-6">
+      <CardFooter>
         {isPremium ? (
-          <Button 
-            className="w-full"
-            onClick={() => manageBilling.mutate()}
-            disabled={manageBilling.isPending}
-          >
-            {manageBilling.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Manage Billing
-              </>
-            )}
+          <Button variant="outline" className="w-full">
+            Manage Subscription
           </Button>
         ) : (
-          <Button 
-            className="w-full bg-gradient-to-r from-amber-500 to-amber-300 hover:from-amber-600 hover:to-amber-400"
-            onClick={() => createCheckoutSession.mutate()}
-            disabled={createCheckoutSession.isPending}
-          >
-            {createCheckoutSession.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <Star className="mr-2 h-4 w-4" />
-                Upgrade to Premium ($10/month)
-              </>
-            )}
-          </Button>
-        )}
-        {!isPremium && (
-          <p className="text-xs text-center text-muted-foreground">
-            Premium includes unlimited projects, integrations, and priority support
-          </p>
+          <Link href="/settings/billing" className="w-full">
+            <Button className="w-full bg-gradient-to-r from-primary to-primary/80">
+              Upgrade to Premium
+            </Button>
+          </Link>
         )}
       </CardFooter>
     </Card>

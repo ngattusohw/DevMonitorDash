@@ -65,12 +65,14 @@ function PricingPlan({ title, price, description, features, cta, popular, classN
         </ul>
       </CardContent>
       <CardFooter>
-        <Button 
-          size="lg" 
-          className={`w-full ${popular ? 'bg-gradient-to-r from-primary to-primary/80' : ''}`}
-        >
-          <Link href="/dashboard">{cta}</Link>
-        </Button>
+        <Link href="/dashboard" className="w-full">
+          <Button 
+            size="lg" 
+            className={`w-full ${popular ? 'bg-gradient-to-r from-primary to-primary/80' : ''}`}
+          >
+            {cta}
+          </Button>
+        </Link>
       </CardFooter>
     </Card>
   );
@@ -90,12 +92,16 @@ export function Landing() {
               Monitor all your services in one place. Track metrics, get alerts, and optimize performance across your entire stack.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-gradient-to-r from-primary to-primary/80">
-                <Link href="/dashboard">Get Started</Link>
-              </Button>
-              <Button size="lg" variant="outline">
-                <Link href="#features">Learn More</Link>
-              </Button>
+              <Link href="/dashboard">
+                <Button size="lg" className="bg-gradient-to-r from-primary to-primary/80">
+                  Get Started
+                </Button>
+              </Link>
+              <a href="#features">
+                <Button size="lg" variant="outline">
+                  Learn More
+                </Button>
+              </a>
             </div>
           </div>
           <div className="lg:w-1/2">
@@ -201,9 +207,11 @@ export function Landing() {
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
             Get started with our free plan today. No credit card required.
           </p>
-          <Button size="lg" className="bg-gradient-to-r from-primary to-primary/80">
-            <Link href="/dashboard">Start Monitoring Now</Link>
-          </Button>
+          <Link href="/dashboard">
+            <Button size="lg" className="bg-gradient-to-r from-primary to-primary/80">
+              Start Monitoring Now
+            </Button>
+          </Link>
         </div>
       </section>
 
@@ -219,8 +227,8 @@ export function Landing() {
           <div>
             <h3 className="font-bold text-lg mb-4">Product</h3>
             <ul className="space-y-2">
-              <li><Link href="#features">Features</Link></li>
-              <li><Link href="#pricing">Pricing</Link></li>
+              <li><a href="#features">Features</a></li>
+              <li><a href="#pricing">Pricing</a></li>
               <li><Link href="/dashboard">Dashboard</Link></li>
             </ul>
           </div>

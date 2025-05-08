@@ -1,7 +1,4 @@
-import { useQuery, useMutation, UseQueryOptions } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 export interface SubscriptionStatus {
   status: string;
@@ -19,70 +16,14 @@ export interface SubscriptionStatus {
 }
 
 export function useSubscription() {
-  const { toast } = useToast();
-
-  const { data: subscription, isLoading } = useQuery<SubscriptionStatus>({
+  const { data, isLoading, error } = useQuery<SubscriptionStatus>({
     queryKey: ['/api/subscription/status'],
-    queryFn: async () => {
-      try {
-        const response = await apiRequest('GET', '/api/subscription/status');
-        return response.json();
-      } catch (error) {
-        toast({
-          title: 'Error fetching subscription status',
-          description: error instanceof Error ? error.message : 'Unknown error',
-          variant: 'destructive',
-        });
-        throw error;
-      }
-    },
-  });
-
-  const createCheckoutSession = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/subscription/checkout');
-      return response.json();
-    },
-    onSuccess: (data) => {
-      // Redirect to Stripe Checkout
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error creating checkout session',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const manageBilling = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/subscription/billing-portal');
-      return response.json();
-    },
-    onSuccess: (data) => {
-      // Redirect to Stripe Billing Portal
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error opening billing portal',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   return {
-    subscription,
+    subscription: data,
     isLoading,
-    createCheckoutSession,
-    manageBilling,
-    isPremium: subscription?.status === 'premium',
+    error,
   };
 }
